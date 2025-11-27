@@ -34,12 +34,17 @@ FONTE_TITULO = pygame.font.SysFont("arial", 60, bold=True)
 FONTE_OPCOES = pygame.font.SysFont("arial", 30, bold=False)
 FONTE_PLACAR = pygame.font.SysFont("arial", 35, bold=True)
 FONTE_AVISO = pygame.font.SysFont("arial", 20, bold=False)
+FONTE_ROUNDS = pygame.font.SysFont("arial", 20, bold=False)
 
 # --- Variáveis Globais de Controle ---
 pontos_p1 = 0
 pontos_p2 = 0
-estado_jogo = "MENU"  # Estados: "MENU" ou "JOGANDO"
+rounds_ganhosp1 = 0
+rounds_ganhosp2 = 0
+estado_jogo = "MENU"  # Estados: "MENU" ou "JOGANDO" ou "VENCEDOR"
 modo_jogo = "BOT"     # Modos: "BOT" ou "PVP"
+limite_round = 2
+LIMITE_VITORIAS_POR_ROUND = 3
 
 TELA = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Pong Circular - Variáveis Complexas & IA")
@@ -91,17 +96,36 @@ def desenhar_menu():
 def resetar_partida():
     """Reinicia variáveis de pontuação e posições para um novo jogo."""
     global pontos_p1, pontos_p2
+    global rounds_ganhosp1, rounds_ganhosp2
     pontos_p1 = 0
     pontos_p2 = 0
+    rounds_ganhosp1 = 0
+    rounds_ganhosp2 = 0
     bola.resetar()
     # Restaura posição inicial das raquetes (Top e Bottom)
     player1.angulo = math.pi/2
     player2.angulo = 3*math.pi/2
 
 
+def procurar_vencedor():
+    global rounds_ganhosp1, rounds_ganhosp2, estado_jogo
+    vencedor = None
+
+    if rounds_ganhosp1 >= LIMITE_VITORIAS_POR_ROUND:
+        vencedor = "JOGADOR 1"
+    elif rounds_ganhosp2 >= LIMITE_VITORIAS_POR_ROUND:
+        vencedor = "JOGADOR 2"
+
+    if vencedor:
+        # Muda o estado de jogo para VENCEDOR
+        estado_jogo = "VENCEDOR"
+        return vencedor
+
+    return None
 # =============================================================================
 # 3. CLASSES (OBJETOS)
 # =============================================================================
+
 
 class Bola:
     def __init__(self):
@@ -166,12 +190,19 @@ class Bola:
                 self.pos += self.vel * 2  # Afasta da borda para evitar 'grudar'
             else:
                 # Pontuação (Bola passou pela defesa)
+                global rounds_ganhosp1, rounds_ganhosp2
                 if 0 < angulo_bola < math.pi:
                     pontos_p2 += 1  # Passou por cima
-                    print(f"Ponto P2! {pontos_p1}x{pontos_p2}")
+                    if pontos_p2 == limite_round:
+                        rounds_ganhosp2 += 1
+                        pontos_p2 = 0
+                        pontos_p1 = 0
                 else:
                     pontos_p1 += 1  # Passou por baixo
-                    print(f"Ponto P1! {pontos_p1}x{pontos_p2}")
+                    if pontos_p1 == limite_round:
+                        rounds_ganhosp1 += 1
+                        pontos_p2 = 0
+                        pontos_p1 = 0
                 self.resetar()
 
     def desenhar(self):
@@ -284,6 +315,12 @@ while rodando:
                 if evento.key == pygame.K_ESCAPE:
                     estado_jogo = "MENU"
 
+            # Lógica do Vencedor
+            elif estado_jogo == "VENCEDOR":
+                if evento.key == pygame.K_m or evento.key == pygame.K_ESCAPE:
+                    estado_jogo = "MENU"
+                    resetar_partida()
+
     # =========================================================================
     # ESTADO: MENU
     # =========================================================================
@@ -338,12 +375,45 @@ while rodando:
         # Placar
         TELA.blit(FONTE_PLACAR.render(
             f"P1: {pontos_p1}", True, COR_PRINCIPAL), (50, 50))
+        TELA.blit(FONTE_ROUNDS.render(
+            f"Rounds ganhos: {rounds_ganhosp1}/{LIMITE_VITORIAS_POR_ROUND}", True, COR_PRINCIPAL), (50, 90))
         TELA.blit(FONTE_PLACAR.render(
-            f"P2: {pontos_p2}", True, COR_PRINCIPAL), (50, ALTURA-80))
+            f"P2: {pontos_p2}", True, COR_PRINCIPAL), (50, ALTURA-100))
+        TELA.blit(FONTE_ROUNDS.render(
+            f"Rounds ganhos: {rounds_ganhosp2}/{LIMITE_VITORIAS_POR_ROUND}", True, COR_PRINCIPAL), (50, ALTURA-60))
+
+        procurar_vencedor()
 
         # Instrução de saída
         TELA.blit(FONTE_AVISO.render("ESC: Menu", True,
                   COR_SECUNDARIA), (LARGURA - 120, 20))
+
+
+# =========================================================================
+# ESTADO: VENCEDOR
+# =========================================================================
+    elif estado_jogo == "VENCEDOR":
+        # Aqui, a física do jogo não é atualizada, apenas o placar final é mostrado.
+        TELA.fill(COR_FUNDO)
+
+        vencedor = "JOGADOR 1" if rounds_ganhosp1 >= 3 else "JOGADOR 2"
+
+        texto_venceu = FONTE_TITULO.render(
+            f"O {vencedor} VENCEU!", True, COR_AVISO)
+        texto_reset = FONTE_AVISO.render(
+            "Pressione [M] para o Menu", True, COR_TEXTO)
+
+        rect_venceu = texto_venceu.get_rect(center=(CENTRO[0], CENTRO[1]))
+        rect_reset = texto_reset.get_rect(center=(CENTRO[0], CENTRO[1] + 50))
+
+        TELA.blit(texto_venceu, rect_venceu)
+        TELA.blit(texto_reset, rect_reset)
+
+        # Lógica de input para voltar ao menu
+        teclas = pygame.key.get_pressed()
+        if teclas[pygame.K_m] or teclas[pygame.K_ESCAPE]:
+            estado_jogo = "MENU"
+            resetar_partida()  # Garante que as pontuações sejam limpas ao voltar'
 
     pygame.display.flip()
     relogio.tick(60)
