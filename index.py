@@ -43,7 +43,7 @@ rounds_ganhosp1 = 0
 rounds_ganhosp2 = 0
 estado_jogo = "MENU"  # Estados: "MENU" ou "JOGANDO" ou "VENCEDOR"
 modo_jogo = "BOT"     # Modos: "BOT" ou "PVP"
-limite_round = 2
+limite_round = 3
 LIMITE_VITORIAS_POR_ROUND = 3
 
 TELA = pygame.display.set_mode((LARGURA, ALTURA))
