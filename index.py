@@ -8,6 +8,29 @@ import random
 # =============================================================================
 pygame.init()
 pygame.font.init()
+pygame.mixer.init()
+
+# --- Carregamento do Som ---
+## Som da colisão
+try:
+    # Tenta carregar o arquivo de som 
+    SOM_IMPACTO = pygame.mixer.Sound("assets/ping.wav")
+    SOM_IMPACTO.set_volume(0.4)  # Ajusta o volume 
+except Exception as e:
+    print(f"Aviso: Som não encontrado ({e}). O jogo continuará mudo.")
+    SOM_IMPACTO = None
+
+# --- Música de Fundo ---
+try:
+    # Tenta carregar o arquivo de som 
+    pygame.mixer.music.load("assets/music_festival.wav") 
+    
+    # volume
+    pygame.mixer.music.set_volume(0.2) 
+    
+    pygame.mixer.music.play(-1) # Loop infinito
+except Exception as e:
+    print(f"Erro na música: {e}")
 
 # --- Geometria da Tela ---
 LARGURA = 1366
@@ -28,6 +51,10 @@ COR_PRINCIPAL = (0, 255, 200)  # Verde Água (Elementos Ativos)
 COR_SECUNDARIA = (60, 20, 80)  # Roxo Médio (Estrutura da Arena)
 COR_AVISO = (255, 255, 0)      # Amarelo (Alertas)
 COR_TEXTO = (255, 255, 255)    # Branco
+
+# --- Cores players ---
+COR_P1 = (0, 191, 255)    # Azul Neon (Deep Sky Blue) para o Player 1
+COR_P2 = (255, 20, 147)   # Rosa Neon (Deep Pink) para o Player 2
 
 # --- Fontes e Texto ---
 FONTE_TITULO = pygame.font.SysFont("arial", 60, bold=True)
@@ -180,6 +207,11 @@ class Bola:
                         margem) <= angulo_bola <= (player2.angulo + margem)
 
             if bateu_p1 or bateu_p2:
+                
+                # --- TOCA O SOM NA COLISÂO ---
+                if SOM_IMPACTO:  # Só toca se o arquivo foi carregado corretamente
+                    SOM_IMPACTO.play()
+
                 # Colisão elástica: inverte o vetor velocidade
                 self.vel = -self.vel
 
@@ -214,13 +246,15 @@ class Bola:
 
 
 class Raquete:
-    def __init__(self, angulo_inicial, limite_min, limite_max):
+
+    def __init__(self, angulo_inicial, limite_min, limite_max, cor):
         """Define raquete controlada por coordenadas polares."""
         self.angulo = angulo_inicial
         self.min = limite_min
         self.max = limite_max
         self.velocidade_giro = VELOCIDADE_GIRO_RAQUETE
         self.tamanho = 0.3  # Comprimento do arco (em radianos)
+        self.cor = cor
 
         # --- IA (Simulação de Comportamento Humano) ---
         self.timer_reacao = 0          # Delay de processamento visual
@@ -235,7 +269,7 @@ class Raquete:
 
     def desenhar(self):
         rect = (CENTRO[0]-RAIO, CENTRO[1]-RAIO, RAIO*2, RAIO*2)
-        pygame.draw.arc(TELA, COR_PRINCIPAL, rect,
+        pygame.draw.arc(TELA, self.cor, rect,
                         self.angulo - self.tamanho/2,
                         self.angulo + self.tamanho/2, 8)
 
@@ -283,8 +317,8 @@ class Raquete:
 # =============================================================================
 
 # P1 (Cima) vs P2 (Baixo)
-player1 = Raquete(math.pi/2, 0, math.pi)
-player2 = Raquete(3*math.pi/2, math.pi, 2*math.pi)
+player1 = Raquete(math.pi/2, 0, math.pi, COR_P1)
+player2 = Raquete(3*math.pi/2, math.pi, 2*math.pi, COR_P2)
 
 bola = Bola()
 relogio = pygame.time.Clock()
@@ -396,7 +430,7 @@ while rodando:
         # Aqui, a física do jogo não é atualizada, apenas o placar final é mostrado.
         TELA.fill(COR_FUNDO)
 
-        vencedor = "JOGADOR 1" if rounds_ganhosp1 >= 3 else "JOGADOR 2"
+        vencedor = "JOGADOR 1" if rounds_ganhosp1 >= LIMITE_VITORIAS_POR_ROUND else "JOGADOR 2"
 
         texto_venceu = FONTE_TITULO.render(
             f"O {vencedor} VENCEU!", True, COR_AVISO)
